@@ -3,12 +3,14 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"os/exec"
 	"strings"
+	"path/filepath"
 
 	"github.com/AlecAivazis/survey/v2"
 )
@@ -46,14 +48,25 @@ type FlixTemplateSchema struct {
 	Data FlixDataSchema `json:"data"`
 }
 
+const Version = "1.1.0"
 func main() {
-	fmt.Println("bash — blsqui-cli")
+	versionFlag := flag.Bool("version", false, "Print the version of Blsqui CLI")
+	vFlag := flag.Bool("v", false, "Print the version of Blsqui CLI")
+
+	flag.Parse()
+
+	// If the user passed the flag, print version and exit immediately
+	if *versionFlag || *vFlag {
+		fmt.Printf("blsqui-cli version %s\n", Version)
+		os.Exit(0)
+	}
 	fmt.Println("Welcome to the Blsqui Developer Tool")
 
 	// 1. First Question: Main Action Branching
 	modeQuestion := &survey.Select{
 		Message: "What do you want to do?:",
 		Options: []string{
+			"Deploy Testnet Smart Contract <NEW!>",
 			"Upload FLIX Template",
 			"Verify FLIX Template Status",
 			"Update Existing Template",
@@ -75,6 +88,8 @@ func main() {
 			handleStatusAndPromotionFlow()
 		case "Update Existing Template":
 			handleUpdateFlow()
+		case "Deploy Testnet Smart Contract <NEW!>":
+			DeployTestnetContract()
 	}
 }
 
@@ -237,7 +252,6 @@ func handleUpdateFlow() {
 	_ = json.Unmarshal(localBytes, &localTemplate)
 
 	// Perform direct text string comparison as the absolute source of truth
-	// Perform direct text string comparison as the absolute source of truth
 	cadenceCodeChanged := true
 	if remoteTemplate != nil {
 		localClean := normalizeCadenceCode(localTemplate.Data.Cadence.Body)
@@ -335,7 +349,7 @@ func handleUpdateFlow() {
 	executeFlixUpdatePayload(flixID, publicationState, promoteToPublic, localBytes)
 }
 
-// --- BRANCH 2: STATUS & PROMOTION FLOW ---
+// --- STATUS & PROMOTION FLOW ---
 func handleStatusAndPromotionFlow() {
 	var flixID string
 	idPrompt := &survey.Input{
@@ -408,19 +422,19 @@ func uploadTemplateToBackend(filePath string) {
 	}
 	defer resp.Body.Close()
 
-	// 1. Fully extract the incoming response byte arrays
+	// Fully extract the incoming response byte arrays
     body, err := io.ReadAll(resp.Body)
     if err != nil {
         fmt.Printf("❌ Failed to read server execution stream: %v", err)
     }
 
-    // 2. Decode the raw JSON structure strings into the Go struct object
+    // Decode the raw JSON structure strings into the Go struct object
     var bResp BlsquiUploadResponse
     if err := json.Unmarshal(body, &bResp); err != nil {
         fmt.Printf("❌ Failed to parse server metadata envelope: %v", err)
     }
 
-    // 3. Verify that the core registry process actually completed successfully
+    // Verify that the core registry process actually completed successfully
     if !bResp.Success || bResp.TemplateID == "" {
 		fmt.Printf("❌ Backend rejected payload: %s\n", bResp.Message)
         return
@@ -535,4 +549,338 @@ func showFlowMissingMessage() {
 	fmt.Println("\nTo fix this, please run the official installation command:")
 	fmt.Println("👉 macOS/Linux: sh -ci \"$(curl -fsSL https://raw.githubusercontent.com/onflow/flow-cli/master/install.sh)\"")
 	fmt.Println("👉 Windows: iex (irm 'https://raw.githubusercontent.com/onflow/flow-cli/master/install.ps1')")
+}
+
+
+type FlowConfig struct {
+	Accounts map[string]interface{} `json:"accounts"`
+}
+
+// DeployTestnetContract targets the Testnet architecture using clean terminal prompts
+func DeployTestnetContract() {
+	network := "testnet"
+
+	// 1. PROMPT FOR CONTRACT METADATA (Bypasses tedious manual flow.json editing)
+	var contractQuestions = []*survey.Question{
+		{
+			Name: "name",
+			Prompt: &survey.Input{
+				Message: "Enter the Smart Contract Name (the soul of the code):",
+				Default: "BlsquiTerminal",
+			},
+			Validate: survey.Required,
+		},
+		{
+			Name: "source",
+			Prompt: &survey.Input{
+				Message: "Enter the relative path to your local Cadence .cdc file:",
+				Default: "./cadence/contracts/BlsquiTerminal.cdc",
+			},
+			Validate: survey.Required,
+		},
+		{
+			Name: "flowJsonPath",
+			Prompt: &survey.Input{
+				Message: "Where is your flow.json configuration file?",
+				Default: "./flow.json",
+			},
+			Validate: survey.Required,
+		},
+	}
+
+	answers := struct {
+		Name         string
+		Source       string
+		FlowJsonPath string
+	}{}
+
+	if err := survey.Ask(contractQuestions, &answers); err != nil {
+		fmt.Printf("🛑 Setup cancelled: %v\n", err)
+		return
+	}
+
+	workingDir := filepath.Dir(answers.FlowJsonPath)
+	flowJsonFilename := filepath.Base(answers.FlowJsonPath)
+
+	// AUTOMATICALLY REGISTER CONTRACT IN FLOW.JSON (If it doesn't exist yet)
+	cmdAddContract := exec.Command("flow", "config", "add", "contract",
+		"-f", flowJsonFilename,
+		"--name", answers.Name,
+		"--source", answers.Source,
+	)
+	cmdAddContract.Dir = workingDir
+	_ = cmdAddContract.Run()
+
+    cmd := exec.Command("flow", "project", "deploy",
+        "-f", flowJsonFilename,
+        "--network", network,
+        "--update",
+    )
+    cmd.Dir = workingDir
+	outputBytes, err := cmd.CombinedOutput()
+
+	// Because we aren't streaming live to os.Stdout anymore, we manually print the raw
+    // compiler response here so you can still read it perfectly on your Mac terminal!
+    combinedLogs := string(outputBytes)
+    fmt.Print(combinedLogs)
+
+    if err == nil {
+        fmt.Println("Success! Contract successfully updated.")
+        return
+    }
+    fmt.Println("\n------------------------------------------------------------")
+
+    // Check for specific Cadence characteristic error signatures inside the Stdout copy!
+    if strings.Contains(combinedLogs, "found new field") {
+        fmt.Println("🚧 Oops! A 'found new field' error occurred.")
+		fmt.Println("🚧 This happens because Cadence is protecting existing account storage layouts.")
+        fmt.Println("💡 But DON'T WORRY. Blsqui CLI can generate a new testnet account")
+        fmt.Println("💡 to overcome this characteristic Cadence limitation.")
+    } else if strings.Contains(combinedLogs, "incompatible change") || strings.Contains(combinedLogs, "removed") {
+        fmt.Println("🚧 Oops! An incompatible storage type modification layout was detected.")
+		fmt.Println("🚧 Existing resource states cannot be overwritten.")
+        fmt.Println("💡 But DON'T WORRY. Blsqui CLI can generate a new testnet account")
+        fmt.Println("💡 to overcome this characteristic Cadence limitation.")
+	} else if strings.Contains(combinedLogs, "storage limit check failed") || strings.Contains(combinedLogs, "capacity") {
+        // NEW ERROR BRANCH: Captures storage boundary panics and routes them to the faucet
+        fmt.Println("🚧 Oops! A 'storage limit check failed' error occurred.")
+        fmt.Println("💸 This happens because the target account does not hold enough FLOW tokens")
+        fmt.Println("   to back the memory space required by your smart contract's byte size.")
+        fmt.Println("\n🚀 HOW TO FIX THIS:")
+        fmt.Println("1. Copy the target account address throwing this error.")
+        fmt.Println("2. Visit the official Flow Testnet Faucet to drop free tokens into it:")
+        fmt.Println("   🔗 👉 https://faucet.flow.com/fund-account")
+        fmt.Println("3. Re-run Blsqui CLI deployment to land your logic beautifully!")
+        fmt.Println("\n--- RAW FLOW CLI OUTPUT ---")
+        if len(strings.TrimSpace(combinedLogs)) > 0 {
+            fmt.Println(combinedLogs)
+        } else {
+            fmt.Printf("Exit Error State: %v\n", err)
+        }
+	    fmt.Println("------------------------------------------------------------\n")
+        return
+    } else {
+        // General fallback message if it failed for standard connectivity or path reasons
+        fmt.Println("[ERROR] Deployment pipeline interrupted. Your contract has some problem. Please read the error message.")
+        fmt.Println("\n--- RAW FLOW CLI OUTPUT ---")
+        if len(strings.TrimSpace(combinedLogs)) > 0 {
+            fmt.Println(combinedLogs)
+        } else {
+            fmt.Printf("Exit Error State: %v\n", err)
+        }
+	    fmt.Println("------------------------------------------------------------\n")
+        return
+    }
+    fmt.Println("------------------------------------------------------------\n")
+
+	confirmNewDeploy := false
+	prompt := &survey.Confirm{
+		Message: fmt.Sprintf("Would you like Blsqui CLI to automatically genarate a new testnet account and deploy %s contract on it?", answers.Name),
+		Default: true,
+	}
+
+	if err := survey.AskOne(prompt, &confirmNewDeploy); err != nil || !confirmNewDeploy {
+		fmt.Println("🛑 Deployment pipeline halted.")
+		return
+	}
+
+	newAccountName, err := getNextSequentialTestnetAccount(answers.FlowJsonPath)
+    if err != nil {
+        newAccountName = "testnet-account-2"
+    }
+
+	var payerAccountName string
+    payerPrompt := &survey.Input{
+        Message: "Enter the account-name of your Testnet account in flow.json (used to pay network fees). It is under accounts in flow.json. :",
+        Default: "blsqui-testnet",
+    }
+    if err := survey.AskOne(payerPrompt, &payerAccountName); err != nil || payerAccountName == "" {
+        fmt.Println("🛑 Deployment pipeline halted. Payer account name is required.")
+        return
+    }
+    payerAccountName = strings.TrimSpace(payerAccountName)
+
+    fmt.Printf("\n Requesting a brand-new account address from Flow Testnet via payer [%s]...\n", payerAccountName)
+
+	createAccountCmd := exec.Command("flow", "accounts", "create",
+        "-f", flowJsonFilename,
+        "--network", "testnet",
+        "--signer", payerAccountName,
+        "--key", "ac1be7cb1a939330d97fae2f36ec2a20e280706006bea995688295f26fe02ac03d10893b4d63f5585acab6726d5d70e8005e52b36b1a7e22cf071dbc92aa699f",
+		"--output", "json",
+    )
+    createAccountCmd.Dir = workingDir
+
+    var stdoutBuf, errBuf bytes.Buffer
+	createAccountCmd.Stdout = &stdoutBuf
+    createAccountCmd.Stderr = &errBuf
+
+    if err := createAccountCmd.Run(); err != nil {
+        fmt.Println("❌ Failed to generate a testnet blockchain account address.")
+		fmt.Println("--- RAW ACCOUNT CREATION ERROR ---")
+        fmt.Println(errBuf.String())
+        fmt.Println("----------------------------------")
+        return
+    }
+	outputStr := stdoutBuf.String()
+
+	var mintedAddress string
+    if strings.Contains(outputStr, "\"address\":") {
+        parts := strings.Split(outputStr, "\"address\":")
+        if len(parts) > 1 {
+            // Isolate the clean hex string
+            subPart := strings.Split(parts[1], ",")[0]
+            mintedAddress = strings.Trim(subPart, " \"\n\r\t")
+        }
+    }
+
+    if mintedAddress == "" {
+        fmt.Println("❌ Failed to parse the newly minted address from Flow CLI response data.")
+        return
+    }
+
+    // Ensure the address does not have a leading 0x before saving
+    mintedAddress = strings.TrimPrefix(mintedAddress, "0x")
+    fmt.Printf("New Testnet address was successfully generated: [0x%s]\n", mintedAddress)
+
+    // WRITE THE CONFIGURATION PARAMETERS SAFELY INTO FLOW.JSON USING THE CONFIG UTILITY
+    fmt.Println("Saving the new profile configuration into flow.json...")
+    addAccountCmd := exec.Command("flow", "config", "add", "account",
+        "-f", flowJsonFilename,
+        "--name", newAccountName,
+        "--address", mintedAddress, // Passes the true, real, live address we parsed!
+        "--private-key", "58552795fa36262c9a1d4a1a47e63eb947dfd385e2ee6eca621625987572df62", // Attaches the private key pairing safely
+    )
+    addAccountCmd.Dir = workingDir
+    if err := addAccountCmd.Run(); err != nil {
+        fmt.Printf("❌ Failed to modify user accounts array: %v\n", err)
+        return
+    }
+
+	// 4. ISOLATE AND CLEAN ONLY THE DEPLOYMENTS BLOCK
+    configBytes, readErr := os.ReadFile(answers.FlowJsonPath)
+    if readErr == nil {
+        configStr := string(configBytes)
+        parts := strings.SplitN(configStr, "\"deployments\":", 2)
+        if len(parts) == 2 {
+            topOfFile := parts[0]
+            deploymentsBlock := parts[1]
+            oldTargetEntry := fmt.Sprintf("\"%s\"", answers.Name)
+            deploymentsBlock = strings.Replace(deploymentsBlock, oldTargetEntry+",", "", 1)
+            deploymentsBlock = strings.Replace(deploymentsBlock, oldTargetEntry, "", 1)
+
+			finalConfigStr := topOfFile + "\"deployments\":" + deploymentsBlock
+            _ = os.WriteFile(answers.FlowJsonPath, []byte(finalConfigStr), 0644)
+        }
+    }
+
+    // 5. WIRE UP THE FRESH ROUTING POINTER IN THE DEPLOYMENT CONFIG
+    fmt.Println("Updating deployment array of flow.json...")
+    configCmd := exec.Command("flow", "config", "add", "deployment",
+        "-f", flowJsonFilename,
+        "--network", network,
+        "--account", newAccountName,
+        "--contract", answers.Name,
+    )
+    configCmd.Dir = workingDir
+    _ = configCmd.Run()
+
+	fmt.Printf("💸 Moving 1.0 FLOW tokens to [0x%s] from %s account for deployment transaction fee requirement...\n", mintedAddress, payerAccountName)
+    cadenceArgsJSON := fmt.Sprintf(`[{"type":"Address","value":"0x%s"},{"type":"UFix64","value":"1.00000000"}]`, mintedAddress)
+	const transferCadenceCode = `
+    import FungibleToken from 0x9a0766d93b6608b7
+    import FlowToken from 0x7e60df042a9c0868
+
+    transaction(recipient: Address, amount: UFix64) {
+        let vaultRef: auth(FungibleToken.Withdraw) &FlowToken.Vault
+
+        prepare(signer: auth(FungibleToken.Withdraw, Storage) &Account) {
+            self.vaultRef = signer.storage.borrow<auth(FungibleToken.Withdraw) &FlowToken.Vault>(from: /storage/flowTokenVault)
+                ?? panic("Could not borrow reference to the owner's Vault!")
+        }
+
+        execute {
+            let receiverRef = getAccount(recipient)
+                .capabilities.get<&{FungibleToken.Receiver}>(/public/flowTokenReceiver)
+                .borrow()
+                ?? panic("Could not borrow receiver reference to the recipient's Vault!")
+
+            let tokens <- self.vaultRef.withdraw(amount: amount)
+            receiverRef.deposit(from: <-tokens)
+        }
+    }`
+
+    // 2. WRITE IT TO A TEMPORARY RUNTIME FILE
+    tempTxFile := ".temp_transfer_tokens.cdc"
+    tempTxPath := filepath.Join(workingDir, tempTxFile)
+    if err := os.WriteFile(tempTxPath, []byte(strings.TrimSpace(transferCadenceCode)), 0644); err != nil {
+        fmt.Printf("❌ Failed to create temporary pipeline transaction: %v\n", err)
+        return
+    }
+    // Ensure the temporary file is deleted when this function exits
+    defer os.Remove(tempTxPath)
+
+	fundCmd := exec.Command("flow", "transactions", "send",
+        tempTxFile,
+        "-f", flowJsonFilename,
+        "--network", "testnet",
+        "--signer", payerAccountName,
+        "--args-json", cadenceArgsJSON,
+    )
+    fundCmd.Dir = workingDir
+
+    var fundErrBuf bytes.Buffer
+    fundCmd.Stderr = &fundErrBuf
+
+    if err := fundCmd.Run(); err != nil {
+        fmt.Printf("[Error]: %v\n", fundErrBuf.String())
+        return
+    }
+    fmt.Println("Storage tokens successfully credited 1.0 FLOW token.")
+
+	// DEPLOY TO THE BRAND NEW ACCOUNT WITHOUT ANY TYPE-SAFETY RESTRICTIONS
+    fmt.Println("Deploying the smart contract to your fresh Testnet address...")
+    deployCmd := exec.Command("flow", "project", "deploy",
+        "-f", flowJsonFilename,
+        "--network", network,
+		"--update",
+    )
+    deployCmd.Dir = workingDir
+    deployCmd.Stdout = os.Stdout
+    deployCmd.Stderr = os.Stderr
+    if err := deployCmd.Run(); err != nil {
+        fmt.Printf("❌ Testnet deployment failed: %v\n", err)
+        return
+    }
+
+	// CLEAN STRINGS FOR EXTRACTION PACKAGING
+    cleanAddress := strings.TrimPrefix(mintedAddress, "0x")
+
+    fmt.Printf("\n🎉 [%s] is running at your new account address space [%s]. Take a Look!! -> https://testnet.flowscan.io/contract/A.%s.%s?tab=deployments\n", 
+        answers.Name,
+        newAccountName,
+        cleanAddress,
+        answers.Name,
+    )
+}
+
+func getNextSequentialTestnetAccount(configPath string) (string, error) {
+	fileBytes, err := os.ReadFile(configPath)
+	if err != nil {
+		return "", err
+	}
+
+	var config FlowConfig
+	if err := json.Unmarshal(fileBytes, &config); err != nil {
+		return "", err
+	}
+
+	testnetCount := 0
+	for accountName := range config.Accounts {
+		if strings.HasPrefix(accountName, "testnet-account-") {
+			testnetCount++
+		}
+	}
+
+	return fmt.Sprintf("testnet-account-%d", testnetCount+1), nil
 }

@@ -12,7 +12,7 @@ elif [ "$ARCH" = "arm64" ] || [ "$ARCH" = "aarch64" ]; then
 fi
 
 # 2. Set Version (Match your GitHub Release Tag)
-VERSION="v1.0.0"
+VERSION="v1.1.0"
 
 # 3. Formulate the Binary Name and GitHub Release URL
 BINARY_NAME="blsqui-cli-${OS}-${ARCH}"

@@ -1,0 +1,10 @@
+# 📦 Compiled Binaries Folder
+dist/
+
+# 🛠️ Local OS metadata
+.DS_Store
+
+# ⚙️ Go workspace & local testing binaries
+*.exe
+*.exe~
+blsqui-cli
