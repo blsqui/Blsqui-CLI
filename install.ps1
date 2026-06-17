@@ -2,7 +2,7 @@ $ErrorActionPreference = "Stop"
 
 # Determine Architecture
 $Arch = if ($env:PROCESSOR_ARCHITECTURE -eq "AMD64") { "amd64" } else { "386" }
-$Version = "v1.1.1"
+$Version = "v1.1.2"
 $BinaryName = "blsqui-cli-windows-$Arch.exe"
 $DownloadUrl = "https://github.com/blsqui/blsqui-cli/releases/download/$Version/$BinaryName"
 
