@@ -97,16 +97,24 @@ func generateAndProcessFlixTemplate() (templatePath string, localBytes []byte, s
 	var cadencePath string
 	pathPrompt := &survey.Input{
 		Message: "Where is your Cadence (.cdc) file?",
-		Default: "./contracts/TransferFlow.cdc",
+		Default: "./cadence/transactions/TransferFlow.cdc",
 	}
 	survey.AskOne(pathPrompt, &cadencePath)
 
 	var metaJsonPath string
 	metaPathPrompt := &survey.Input{
 		Message: "Where is your Metadata (.json) file?",
-		Default: "./metadata/metadata.json",
+		Default: "./cadence/metadata/metadata.json",
 	}
 	survey.AskOne(metaPathPrompt, &metaJsonPath)
+
+	metaJsonPath = strings.TrimSpace(metaJsonPath)
+    if _, err := os.Stat(metaJsonPath); os.IsNotExist(err) {
+        fmt.Println("\n⚠️  [BLSQUI ERROR] Metadata source file is missing.")
+        fmt.Println("The Flow CLI requires a valid pre-fill metadata JSON to successfully generate contract messages.")
+        fmt.Println("Please verify your path or construct the metadata json file before moving forward.")
+        return
+    }
 
 	var flowJsonPath string
 	flowJsonPrompt := &survey.Input{
@@ -119,37 +127,44 @@ func generateAndProcessFlixTemplate() (templatePath string, localBytes []byte, s
 	cadencePath = strings.TrimSpace(cadencePath)
 
 	// Isolate the base folder path where flow.json lives to ground context relativity
-	var workingDir string
-	if idx := strings.LastIndex(flowJsonPath, "/"); idx != -1 {
-		workingDir = flowJsonPath[:idx]
-	} else {
-		workingDir = "."
-	}
+	// var workingDir string
+	// if idx := strings.LastIndex(flowJsonPath, "/"); idx != -1 {
+	// 	workingDir = flowJsonPath[:idx]
+	// } else {
+	// 	workingDir = "."
+	// }
 
-	// Clean the file paths to be relative to the execution workingDir context
-	relativeCadencePath := cadencePath
-	if strings.HasPrefix(cadencePath, workingDir+"/") {
-		relativeCadencePath = strings.TrimPrefix(cadencePath, workingDir+"/")
-	}
-	
-	relativeFlowJsonPath := flowJsonPath
-	if strings.HasPrefix(flowJsonPath, workingDir+"/") {
-		relativeFlowJsonPath = strings.TrimPrefix(flowJsonPath, workingDir+"/")
-	}
+	absCadencePath, err1 := filepath.Abs(strings.TrimSpace(cadencePath))
+    absFlowJsonPath, err2 := filepath.Abs(strings.TrimSpace(flowJsonPath))
+    absMetaJsonPath, err3 := filepath.Abs(strings.TrimSpace(metaJsonPath))
 
-	relativeMetaJsonPath := metaJsonPath
-    if strings.HasPrefix(metaJsonPath, workingDir+"/") {
-        relativeMetaJsonPath = strings.TrimPrefix(metaJsonPath, workingDir+"/")
+	if err1 != nil || err2 != nil || err3 != nil {
+        fmt.Println("\n❌ Filepath Resolution Failure: Unable to calculate absolute system maps.")
+        return "", nil, false
     }
 
+	// relativeCadencePath := cadencePath
+	// if strings.HasPrefix(cadencePath, workingDir+"/") {
+	// 	relativeCadencePath = "'" +strings.TrimPrefix(cadencePath, workingDir+"/") + "'"
+	// }
+	
+	// relativeFlowJsonPath := flowJsonPath
+	// if strings.HasPrefix(flowJsonPath, workingDir+"/") {
+	// 	relativeFlowJsonPath = "'" +strings.TrimPrefix(flowJsonPath, workingDir+"/") + "'"
+	// }
+
+	// relativeMetaJsonPath := metaJsonPath
+    // if strings.HasPrefix(metaJsonPath, workingDir+"/") {
+    //     relativeMetaJsonPath = "'" +strings.TrimPrefix(metaJsonPath, workingDir+"/") + "'"
+    // }
+
 	cmd := exec.Command(
-		"flow", "flix", "generate", relativeCadencePath, 
-		"-f", relativeFlowJsonPath, 
-		"--pre-fill", relativeMetaJsonPath,
-		"--network", "testnet",
-		"--network", "mainnet",
-	)
-	cmd.Dir = workingDir
+        "flow", "flix", "generate", absCadencePath, 
+        "-f", absFlowJsonPath, 
+        "--pre-fill", absMetaJsonPath,
+        "--network", "testnet",
+        "--network", "mainnet",
+    )
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -528,7 +543,7 @@ func executeFlixUpdatePayload(flixID string, publicationState string, promoteToP
 	}
 
 	// 3. Print out clean confirmation messages with the pristine URL
-	fmt.Println("\n🎉 Success! Updated FLIX Template is successfully injected into Blsqui Registry.")
+	fmt.Println("\n🎉 Congratulations! Updated FLIX Template is successfully injected into Blsqui Registry.")
 	fmt.Println("Use the following URL to integrate this updated FLIX Template into your application:")
 	fmt.Printf("👉 https://blsqui.net/flix/registry/%s\n\n", uResp.NewTemplateID)
 }
@@ -565,7 +580,7 @@ func DeployTestnetContract() {
 		{
 			Name: "name",
 			Prompt: &survey.Input{
-				Message: "Enter the Smart Contract Name (the soul of the code):",
+				Message: "Enter the Smart Contract Name:",
 				Default: "BlsquiTerminal",
 			},
 			Validate: survey.Required,
@@ -573,7 +588,7 @@ func DeployTestnetContract() {
 		{
 			Name: "source",
 			Prompt: &survey.Input{
-				Message: "Enter the relative path to your local Cadence .cdc file:",
+				Message: "Where is your local Cadence smart contract file:",
 				Default: "./cadence/contracts/BlsquiTerminal.cdc",
 			},
 			Validate: survey.Required,

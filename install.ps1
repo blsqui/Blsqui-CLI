@@ -1,14 +1,14 @@
 $ErrorActionPreference = "Stop"
 
-# 1. Determine Architecture
+# Determine Architecture
 $Arch = if ($env:PROCESSOR_ARCHITECTURE -eq "AMD64") { "amd64" } else { "386" }
-$Version = "v1.1.0"
+$Version = "v1.1.1"
 $BinaryName = "blsqui-cli-windows-$Arch.exe"
 $DownloadUrl = "https://github.com/blsqui/blsqui-cli/releases/download/$Version/$BinaryName"
 
 Write-Host "📥 Downloading Blsqui CLI $Version for Windows ($Arch)..." -ForegroundColor Cyan
 
-# 2. Define a clean installation path in User's AppData (Avoids strict Admin Privilege blocks)
+# Define a clean installation path in User's AppData (Avoids strict Admin Privilege blocks)
 $InstallDir = "$env:USERPROFILE\.blsqui"
 if (-not (Test-Path $InstallDir)) {
     New-Item -ItemType Directory -Path $InstallDir | Out-Null
@@ -16,10 +16,10 @@ if (-not (Test-Path $InstallDir)) {
 
 $ExePath = Join-Path $InstallDir "blsqui.exe"
 
-# 3. Download the binary asset
+# Download the binary asset
 Invoke-WebRequest -Uri $DownloadUrl -OutFile $ExePath
 
-# 4. Permanently append to User PATH environment variable if not already present
+# Permanently append to User PATH environment variable if not already present
 $UserPath = [Environment]::GetEnvironmentVariable("Path", "User")
 if ($UserPath -notlike "*\.blsqui*") {
     [Environment]::SetEnvironmentVariable("Path", "$UserPath;$InstallDir", "User")
