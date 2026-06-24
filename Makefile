@@ -1,5 +1,5 @@
 # Blsqui CLI - High Grade Multi-Platform Build Pipeline
-VERSION=v1.1.3
+VERSION=v1.1.4
 CFLAGS=-std=c11 -D_GNU_SOURCE -D_POSIX_C_SOURCE=199309L -Wno-maybe-uninitialized -Wno-unused-variable
 
 # Default target when you just run 'make'

@@ -48,7 +48,7 @@ type FlixTemplateSchema struct {
 	Data FlixDataSchema `json:"data"`
 }
 
-const Version = "1.1.3"
+const Version = "1.1.4"
 func main() {
 	versionFlag := flag.Bool("version", false, "Print the version of Blsqui CLI")
 	vFlag := flag.Bool("v", false, "Print the version of Blsqui CLI")
