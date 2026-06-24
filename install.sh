@@ -12,7 +12,7 @@ elif [ "$ARCH" = "arm64" ] || [ "$ARCH" = "aarch64" ]; then
 fi
 
 # Set Version (Match your GitHub Release Tag)
-VERSION="v1.1.2"
+VERSION="v1.1.3"
 
 # Formulate the Binary Name and GitHub Release URL
 BINARY_NAME="blsqui-cli-${OS}-${ARCH}"
@@ -31,4 +31,4 @@ else
     chmod +x "$TARGET_DIR/blsqui"
 fi
 
-echo "✅ Blsqui CLI installed successfully! Run 'blsqui' to get started."
+echo "✅ Blsqui CLI installed successfully! Run 'blsqui' to get started. Or run 'blsqui -v' to verify your installation."

@@ -2,7 +2,7 @@ $ErrorActionPreference = "Stop"
 
 # Determine Architecture
 $Arch = if ($env:PROCESSOR_ARCHITECTURE -eq "AMD64") { "amd64" } else { "386" }
-$Version = "v1.1.2"
+$Version = "v1.1.3"
 $BinaryName = "blsqui-cli-windows-$Arch.exe"
 $DownloadUrl = "https://github.com/blsqui/blsqui-cli/releases/download/$Version/$BinaryName"
 
@@ -27,4 +27,4 @@ if ($UserPath -notlike "*\.blsqui*") {
 }
 
 Write-Host "✅ Blsqui CLI installed successfully!" -ForegroundColor Green
-Write-Host "💡 Please restart your PowerShell window and run 'blsqui' to begin." -ForegroundColor Green
+Write-Host "💡 Run 'blsqui -v' to verify your installation." -ForegroundColor Green

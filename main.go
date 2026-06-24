@@ -48,7 +48,7 @@ type FlixTemplateSchema struct {
 	Data FlixDataSchema `json:"data"`
 }
 
-const Version = "1.1.2"
+const Version = "1.1.3"
 func main() {
 	versionFlag := flag.Bool("version", false, "Print the version of Blsqui CLI")
 	vFlag := flag.Bool("v", false, "Print the version of Blsqui CLI")
@@ -97,7 +97,7 @@ func generateAndProcessFlixTemplate() (templatePath string, localBytes []byte, s
 	var cadencePath string
 	pathPrompt := &survey.Input{
 		Message: "Where is your Cadence (.cdc) file?",
-		Default: "./cadence/transactions/TransferFlow.cdc",
+		Default: "./cadence/transactions/transfer_10_flow.cdc",
 	}
 	survey.AskOne(pathPrompt, &cadencePath)
 
@@ -577,22 +577,22 @@ func DeployTestnetContract() {
 
 	// 1. PROMPT FOR CONTRACT METADATA (Bypasses tedious manual flow.json editing)
 	var contractQuestions = []*survey.Question{
-		{
-			Name: "name",
-			Prompt: &survey.Input{
-				Message: "Enter the Smart Contract Name:",
-				Default: "BlsquiTerminal",
-			},
-			Validate: survey.Required,
-		},
-		{
-			Name: "source",
-			Prompt: &survey.Input{
-				Message: "Where is your local Cadence smart contract file:",
-				Default: "./cadence/contracts/BlsquiTerminal.cdc",
-			},
-			Validate: survey.Required,
-		},
+		// {
+		// 	Name: "name",
+		// 	Prompt: &survey.Input{
+		// 		Message: "Enter the Smart Contract Name:",
+		// 		Default: "GeneralGame",
+		// 	},
+		// 	Validate: survey.Required,
+		// },
+		// {
+		// 	Name: "source",
+		// 	Prompt: &survey.Input{
+		// 		Message: "Where is your local Cadence smart contract file:",
+		// 		Default: "./cadence/contracts/GeneralGame.cdc",
+		// 	},
+		// 	Validate: survey.Required,
+		// },
 		{
 			Name: "flowJsonPath",
 			Prompt: &survey.Input{
@@ -618,13 +618,13 @@ func DeployTestnetContract() {
 	flowJsonFilename := filepath.Base(answers.FlowJsonPath)
 
 	// AUTOMATICALLY REGISTER CONTRACT IN FLOW.JSON (If it doesn't exist yet)
-	cmdAddContract := exec.Command("flow", "config", "add", "contract",
-		"-f", flowJsonFilename,
-		"--name", answers.Name,
-		"--source", answers.Source,
-	)
-	cmdAddContract.Dir = workingDir
-	_ = cmdAddContract.Run()
+	// cmdAddContract := exec.Command("flow", "config", "add", "contract",
+	// 	"-f", flowJsonFilename,
+	// 	"--name", answers.Name,
+	// 	"--source", answers.Source,
+	// )
+	// cmdAddContract.Dir = workingDir
+	// _ = cmdAddContract.Run()
 
     cmd := exec.Command("flow", "project", "deploy",
         "-f", flowJsonFilename,
@@ -643,22 +643,23 @@ func DeployTestnetContract() {
         fmt.Println("Success! Contract successfully updated.")
         return
     }
+	fmt.Println("████████████████████████████████████████████████████████████")
     fmt.Println("\n------------------------------------------------------------")
 
     // Check for specific Cadence characteristic error signatures inside the Stdout copy!
     if strings.Contains(combinedLogs, "found new field") {
-        fmt.Println("🚧 Oops! A 'found new field' error occurred.")
+        fmt.Println("🚧 OOPS! A 'found new field' error occurred.")
 		fmt.Println("🚧 This happens because Cadence is protecting existing account storage layouts.")
-        fmt.Println("💡 But DON'T WORRY. Blsqui CLI can generate a new testnet account")
-        fmt.Println("💡 to overcome this characteristic Cadence limitation.")
+        fmt.Println("🔥 BUT DON'T WORRY! Blsqui CLI can generate a new testnet account and deploy a contract to it")
+        fmt.Println("🔥 to overcome this characteristic Cadence limitation.")
     } else if strings.Contains(combinedLogs, "incompatible change") || strings.Contains(combinedLogs, "removed") {
-        fmt.Println("🚧 Oops! An incompatible storage type modification layout was detected.")
+        fmt.Println("🚧 OOPS! An incompatible storage type modification layout was detected.")
 		fmt.Println("🚧 Existing resource states cannot be overwritten.")
-        fmt.Println("💡 But DON'T WORRY. Blsqui CLI can generate a new testnet account")
-        fmt.Println("💡 to overcome this characteristic Cadence limitation.")
+        fmt.Println("🔥 BUT DON'T WORRY! Blsqui CLI can generate a new testnet account and deploy a contract to it")
+        fmt.Println("🔥 to overcome this characteristic Cadence limitation.")
 	} else if strings.Contains(combinedLogs, "storage limit check failed") || strings.Contains(combinedLogs, "capacity") {
         // NEW ERROR BRANCH: Captures storage boundary panics and routes them to the faucet
-        fmt.Println("🚧 Oops! A 'storage limit check failed' error occurred.")
+        fmt.Println("🚧 OOPS! A 'storage limit check failed' error occurred.")
         fmt.Println("💸 This happens because the target account does not hold enough FLOW tokens")
         fmt.Println("   to back the memory space required by your smart contract's byte size.")
         fmt.Println("\n🚀 HOW TO FIX THIS:")
@@ -672,7 +673,8 @@ func DeployTestnetContract() {
         } else {
             fmt.Printf("Exit Error State: %v\n", err)
         }
-	    fmt.Println("------------------------------------------------------------\n")
+	    fmt.Println("------------------------------------------------------------")
+        fmt.Println("████████████████████████████████████████████████████████████\n")
         return
     } else {
         // General fallback message if it failed for standard connectivity or path reasons
@@ -707,7 +709,7 @@ func DeployTestnetContract() {
 	var payerAccountName string
     payerPrompt := &survey.Input{
         Message: "Enter the account-name of your Testnet account in flow.json (used to pay network fees). It is under accounts in flow.json. :",
-        Default: "blsqui-testnet",
+        Default: "testnet-account",
     }
     if err := survey.AskOne(payerPrompt, &payerAccountName); err != nil || payerAccountName == "" {
         fmt.Println("🛑 Deployment pipeline halted. Payer account name is required.")
