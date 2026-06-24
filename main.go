@@ -62,7 +62,7 @@ func main() {
 	}
 	fmt.Println("Welcome to the Blsqui Developer Tool")
 
-	// 1. First Question: Main Action Branching
+	// First Question: Main Action Branching
 	modeQuestion := &survey.Select{
 		Message: "What do you want to do?:",
 		Options: []string{
@@ -577,22 +577,14 @@ func DeployTestnetContract() {
 
 	// 1. PROMPT FOR CONTRACT METADATA (Bypasses tedious manual flow.json editing)
 	var contractQuestions = []*survey.Question{
-		// {
-		// 	Name: "name",
-		// 	Prompt: &survey.Input{
-		// 		Message: "Enter the Smart Contract Name:",
-		// 		Default: "GeneralGame",
-		// 	},
-		// 	Validate: survey.Required,
-		// },
-		// {
-		// 	Name: "source",
-		// 	Prompt: &survey.Input{
-		// 		Message: "Where is your local Cadence smart contract file:",
-		// 		Default: "./cadence/contracts/GeneralGame.cdc",
-		// 	},
-		// 	Validate: survey.Required,
-		// },
+		{
+			Name: "name",
+			Prompt: &survey.Input{
+				Message: "Enter the Smart Contract Name:",
+				Default: "BlsquiTerminal",
+			},
+			Validate: survey.Required,
+		},
 		{
 			Name: "flowJsonPath",
 			Prompt: &survey.Input{
@@ -605,7 +597,6 @@ func DeployTestnetContract() {
 
 	answers := struct {
 		Name         string
-		Source       string
 		FlowJsonPath string
 	}{}
 
@@ -616,15 +607,6 @@ func DeployTestnetContract() {
 
 	workingDir := filepath.Dir(answers.FlowJsonPath)
 	flowJsonFilename := filepath.Base(answers.FlowJsonPath)
-
-	// AUTOMATICALLY REGISTER CONTRACT IN FLOW.JSON (If it doesn't exist yet)
-	// cmdAddContract := exec.Command("flow", "config", "add", "contract",
-	// 	"-f", flowJsonFilename,
-	// 	"--name", answers.Name,
-	// 	"--source", answers.Source,
-	// )
-	// cmdAddContract.Dir = workingDir
-	// _ = cmdAddContract.Run()
 
     cmd := exec.Command("flow", "project", "deploy",
         "-f", flowJsonFilename,
