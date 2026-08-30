@@ -16,14 +16,16 @@ The official developer command-line tool for **Blsqui** — streamlining Cadence
 
 ## 📦 Installation
 
+> 💡 **Tip:** To update an existing installation to the latest version, run the exact same command.
+
 ### macOS & Linux
 ```bash
-sh -ci "$(curl -fsSL [https://raw.githubusercontent.com/blsqui/blsqui-cli/master/install.sh](https://raw.githubusercontent.com/blsqui/blsqui-cli/master/install.sh))"
+sh -ci "$(curl -fsSL https://raw.githubusercontent.com/blsqui/blsqui-cli/master/install.sh)"
 ```
 
 ### Windows (PowerShell)
 ```bash
-irm [https://raw.githubusercontent.com/blsqui/blsqui-cli/master/install.ps1](https://raw.githubusercontent.com/blsqui/blsqui-cli/master/install.ps1) | iex
+irm https://raw.githubusercontent.com/blsqui/blsqui-cli/master/install.ps1 | iex
 ```
 
 ## 📋 Prerequisites
@@ -31,12 +33,12 @@ irm [https://raw.githubusercontent.com/blsqui/blsqui-cli/master/install.ps1](htt
 ### 1. Install Flow CLI
 - macOS & Linux
 ```bash
-sh -ci "$(curl -fsSL [https://raw.githubusercontent.com/onflow/flow-cli/master/install.sh](https://raw.githubusercontent.com/onflow/flow-cli/master/install.sh))"
+sh -ci "$(curl -fsSL https://raw.githubusercontent.com/onflow/flow-cli/master/install.sh)"
 ```
 
 - Windows (PowerShell)
 ```bash
-iex (irm '[https://raw.githubusercontent.com/onflow/flow-cli/master/install.ps1](https://raw.githubusercontent.com/onflow/flow-cli/master/install.ps1)')
+iex (irm 'https://raw.githubusercontent.com/onflow/flow-cli/master/install.ps1')
 ```
 
 ### 2. Initialize Flow Project
