@@ -75,7 +75,7 @@ func generateAndProcessFlixTemplate() (templatePath string, localBytes []byte, s
 	var metaJsonPath string
 	metaPathPrompt := &survey.Input{
 		Message: "Where is your Metadata (.json) file?",
-		Default: "./cadence/metadata/metadata.json",
+		Default: "./cadence/metadata/transfer_10_flow_metadata.json",
 	}
 	survey.AskOne(metaPathPrompt, &metaJsonPath, survey.WithValidator(func(val interface{}) error {
 		str, _ := val.(string)
@@ -214,9 +214,20 @@ func uploadTemplateToBackend(filePath string) {
 		return
 	}
 
-	fmt.Println("\nSuccess!")
-	fmt.Println("Your FLIX ID has been generated. Use the following URL to integrate this template into your application:")
-	fmt.Printf("https://blsqui.net/flix/registry/%s\n\n", bResp.TemplateID)
+	fmt.Println("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    fmt.Println("🎉 FLIX Template Registered Successfully!")
+    fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+    fmt.Printf("\n📋 FLIX Template ID (For SDK & Web):\n")
+    fmt.Printf("   \033[1;36m%s\033[0m\n", bResp.TemplateID)
+
+    fmt.Printf("\n🔗 Direct Registry Endpoint:\n")
+    fmt.Printf("   https://api.blsqui.net/flix/registry/%s\n", bResp.TemplateID)
+
+    fmt.Println("\n💡 Tip:")
+    fmt.Println("   Copy the FLIX Template ID above into your Unreal Engine / Unity / Godot SDKs")
+    fmt.Println("   or pass it directly into your web integration.")
+    fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
 }
 
 func normalizeCadenceCode(code string) string {
@@ -240,7 +251,7 @@ func normalizeCadenceCode(code string) string {
 }
 
 func fetchRemoteFlixTemplate(flixID string) (*FlixTemplateSchema, error) {
-	url := fmt.Sprintf("https://blsqui.net/flix/registry/%s", flixID)
+	url := fmt.Sprintf("https://api.blsqui.net/flix/registry/%s", flixID)
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, err
@@ -259,7 +270,7 @@ func fetchRemoteFlixTemplate(flixID string) (*FlixTemplateSchema, error) {
 	return &remote, nil
 }
 
-func executeFlixUpdatePayload(flixID string, publicationState string, promoteToPublic bool, localBytes []byte) {
+func executeFlixUpdatePayload(flixID string, publicationState string, promoteToPublic bool, localBytes []byte, isCadenceChanged bool) {
 	payload := map[string]interface{}{
 		"targetFlixID":     flixID,
 		"publicationState": publicationState,
@@ -287,7 +298,22 @@ func executeFlixUpdatePayload(flixID string, publicationState string, promoteToP
 		return
 	}
 
-	fmt.Println("\n🎉 Congratulations! Updated FLIX Template is successfully injected into Blsqui Registry.")
-	fmt.Println("Use the following URL to integrate this updated FLIX Template into your application:")
-	fmt.Printf("👉 https://blsqui.net/flix/registry/%s\n\n", uResp.NewTemplateID)
+	fmt.Println("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    fmt.Println("🎉 FLIX Template Updated & Synchronized Successfully!")
+    fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+    fmt.Printf("\n📋 New FLIX Template ID (For SDK & Web):\n")
+    fmt.Printf("   \033[1;36m%s\033[0m\n", uResp.NewTemplateID)
+
+    fmt.Printf("\n🔗 Direct Registry Endpoint:\n")
+    fmt.Printf("   https://api.blsqui.net/flix/registry/%s\n", uResp.NewTemplateID)
+
+    if isCadenceChanged {
+        fmt.Println("\n⚠️  Status: Staged for Audit Review")
+        fmt.Println("   Since Cadence logic was modified, this template will be activated")
+        fmt.Println("   on the public network once the audit review is verified.")
+    } else {
+        fmt.Println("\n✅ Status: Live & Active (Updates are effective immediately.)")
+    }
+    fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
 }

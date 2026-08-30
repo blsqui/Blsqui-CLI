@@ -57,5 +57,5 @@ func executeStateChange(flixID string, targetState string) {
 	fmt.Printf("📡 Communicating state modification for ID: %s...\n", flixID)
 	fmt.Println("Template successfully promoted to Public!")
 	fmt.Println("[System] Updated Registry State: PUBLIC")
-	fmt.Printf("[URL] Live at: https://blsqui.net/flix/registry/%s\n", flixID)
+	fmt.Printf("[URL] Live at: https://api.blsqui.net/flix/registry/%s\n", flixID)
 }

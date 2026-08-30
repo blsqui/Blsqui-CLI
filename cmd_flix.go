@@ -195,5 +195,5 @@ func handleUpdateFlow() {
 		return
 	}
 
-	executeFlixUpdatePayload(flixID, publicationState, promoteToPublic, localBytes)
+	executeFlixUpdatePayload(flixID, publicationState, promoteToPublic, localBytes, cadenceCodeChanged)
 }

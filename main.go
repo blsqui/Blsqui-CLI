@@ -8,7 +8,7 @@ import (
 	"github.com/AlecAivazis/survey/v2"
 )
 
-const Version = "1.1.5"
+const Version = "1.1.6"
 
 func init() {
 	// Globally override survey's error template with valid template syntax
