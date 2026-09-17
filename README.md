@@ -79,7 +79,48 @@ blsqui -version
 blsqui --help
 ```
 
-## 📖 Documentation & Guides
+# Blsqui FLIX Auto-Audit Specifications
+
+To protect users against unintended token drains and asset losses, all FLIX templates submitted through `blsqui-cli` undergo automated static verification. Templates failing any of the following checks are rejected with HTTP `422 Unprocessable Entity`.
+
+---
+
+### Rules & Error Codes
+
+| Error Code | Target | Rule Description |
+| :--- | :--- | :--- |
+| `FLIX_AUDIT_FT_AMOUNT_NOT_HARDCODED` | `cadence_script.cdc:<line>` | Any `.withdraw(amount: ...)` call protected by `auth(FungibleToken.Withdraw)` must use a **hardcoded numeric literal** (e.g. `1.0`), never a variable or parameter. |
+| `FLIX_AUDIT_METADATA_MISMATCH` | `metadata.description` | 1. If an amount is withdrawn, both the exact numeric amount and the token symbol (e.g., `1.0 FLOW` or `1 FLOW`) must appear in all language descriptions.<br>2. If the Cadence code contains a `destroy` keyword, all description translations must include `*destroy`. |
+| `FLIX_AUDIT_METADATA_MISMATCH` | `metadata.sdk:detail-body` | If `sdk:detail-body` is defined, it must include the numeric amount specified in the withdrawal. |
+
+---
+
+### Valid Sample
+
+```cadence
+// Cadence
+let vaultRef = signer.storage.borrow<auth(FungibleToken.Withdraw) &FlowToken.Vault>(
+    from: /storage/flowTokenVault
+) ?? panic("Could not borrow reference to owner Vault")
+
+self.sentVault <- vaultRef.withdraw(amount: 1.0)
+```
+```json
+// metadata.json
+{
+  "messages": [
+    {
+      "key": "description",
+      "i18n": [
+        { "tag": "en-US", "translation": "Insert 1.0 FLOW coins to enter the match." },
+        { "tag": "ja-JP", "translation": "対戦に参加するため 1.0 FLOW を支払います。" }
+      ]
+    }
+  ]
+}
+```
+
+## 📖 More Documentation & Guides
 
 - Developer Guide & Tutorials: https://blsqui.net/developer-guide/blsqui-cli
 - Unreal Engine 5 SDK: BlsquiSDK-UnrealPublic

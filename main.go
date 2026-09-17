@@ -44,20 +44,18 @@ func main() {
 
 	// Descriptive Action Prompts
 	const (
-		optDeploy = "🚀 Deploy Contract   — Auto-deploy/migrate Cadence smart contracts to Testnet"
 		optUpload = "📦 Upload FLIX       — Generate and register a new FLIX v1.1 template"
 		optUpdate = "🔄 Update Template   — Sync IP branding, metadata changes, or updated Cadence"
-		optStatus = "🔍 Verify Status     — Inspect audit progress and publish templates to public"
+		optDeploy = "🚀 Deploy Contract   — Auto-deploy/migrate Cadence smart contracts to Testnet"
 		optExit   = "🚪 Exit              — Close developer tool"
 	)
 
 	modeQuestion := &survey.Select{
 		Message: "Select a development workflow:",
 		Options: []string{
-			optDeploy,
 			optUpload,
 			optUpdate,
-			optStatus,
+			optDeploy,
 			optExit,
 		},
 		PageSize: 5,
@@ -81,8 +79,6 @@ func main() {
 		handleUploadFlow()
 	case optUpdate:
 		handleUpdateFlow()
-	case optStatus:
-		handleStatusAndPromotionFlow()
 	case optExit:
 		fmt.Println("👋 Exited Blsqui CLI. Happy building!")
 		os.Exit(0)

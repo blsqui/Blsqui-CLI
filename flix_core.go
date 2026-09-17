@@ -14,16 +14,10 @@ import (
 	"github.com/AlecAivazis/survey/v2"
 )
 
-type BlsquiUploadResponse struct {
-	Success    bool   `json:"success"`
-	TemplateID string `json:"template_id,omitempty"`
-	Message    string `json:"message,omitempty"`
-}
-
-type FlixUpdateResponse struct {
-	Success       bool   `json:"success"`
-	TargetFlixID  string `json:"target_flix_id"`
-	NewTemplateID string `json:"new_template_id"`
+type FlixServerResponse struct {
+    Success      bool   `json:"success"`
+    TemplateID   string `json:"template_id"`
+    Message      string `json:"message,omitempty"`
 }
 
 type FlixUpdateEnvelope struct {
@@ -44,6 +38,18 @@ type FlixDataSchema struct {
 type FlixTemplateSchema struct {
 	ID   string         `json:"id"`
 	Data FlixDataSchema `json:"data"`
+}
+
+type BlsquiAuditError struct {
+    Code    string `json:"code"`
+    Target  string `json:"target"`
+    Message string `json:"message"`
+}
+
+type BlsquiErrorResponse struct {
+    Success bool               `json:"success"`
+    Error   string             `json:"error"`
+    Errors  []BlsquiAuditError `json:"errors"`
 }
 
 func showFlowMissingMessage() {
@@ -178,43 +184,51 @@ func generateAndProcessFlixTemplate() (templatePath string, localBytes []byte, s
 }
 
 func uploadTemplateToBackend(filePath string) {
-	fileData, err := os.ReadFile(filePath)
-	if err != nil {
-		fileData = []byte(`{"data": "mock_template_payload"}`)
-	}
+    fileData, err := os.ReadFile(filePath)
+    if err != nil {
+        fileData = []byte(`{"data": "mock_template_payload"}`)
+    }
 
-	url := "https://api.blsqui.net/api/flix/register"
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(fileData))
-	if err != nil {
-		fmt.Printf("❌ Failed to construct request: %v\n", err)
-		return
-	}
-	req.Header.Set("Content-Type", "application/json")
+    url := "https://api.blsqui.net/api/flix/register"
+    req, err := http.NewRequest("POST", url, bytes.NewBuffer(fileData))
+    if err != nil {
+        fmt.Printf("❌ Failed to construct request: %v\n", err)
+        return
+    }
+    req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		fmt.Printf("❌ Network Error connecting to Go backend: %v\n", err)
-		return
-	}
-	defer resp.Body.Close()
+    client := &http.Client{}
+    resp, err := client.Do(req)
+    if err != nil {
+        fmt.Printf("❌ Network Error connecting to Go backend: %v\n", err)
+        return
+    }
+    defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		fmt.Printf("❌ Failed to read server execution stream: %v", err)
-	}
+    body, err := io.ReadAll(resp.Body)
+    if err != nil {
+        fmt.Printf("❌ Failed to read server execution stream: %v\n", err)
+        return
+    }
 
-	var bResp BlsquiUploadResponse
-	if err := json.Unmarshal(body, &bResp); err != nil {
-		fmt.Printf("❌ Failed to parse server metadata envelope: %v", err)
-	}
+    // Intercept HTTP errors (e.g., 422 Unprocessable Entity for audit failures, 400 Bad Request)
+    if resp.StatusCode != http.StatusOK {
+        handleAuditErrorResponse(resp.StatusCode, body)
+        return
+    }
 
-	if !bResp.Success || bResp.TemplateID == "" {
-		fmt.Printf("❌ Backend rejected payload: %s\n", bResp.Message)
-		return
-	}
+    var bResp FlixServerResponse
+    if err := json.Unmarshal(body, &bResp); err != nil {
+        fmt.Printf("❌ Failed to parse server metadata envelope: %v\n", err)
+        return
+    }
 
-	fmt.Println("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    if !bResp.Success || bResp.TemplateID == "" {
+        fmt.Printf("❌ Backend rejected payload: %s\n", bResp.Message)
+        return
+    }
+
+    fmt.Println("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     fmt.Println("🎉 FLIX Template Registered Successfully!")
     fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
@@ -270,50 +284,81 @@ func fetchRemoteFlixTemplate(flixID string) (*FlixTemplateSchema, error) {
 	return &remote, nil
 }
 
-func executeFlixUpdatePayload(flixID string, publicationState string, promoteToPublic bool, localBytes []byte, isCadenceChanged bool) {
-	payload := map[string]interface{}{
-		"targetFlixID":     flixID,
-		"publicationState": publicationState,
-		"publicTrigger":    promoteToPublic,
-		"templateData":     json.RawMessage(localBytes),
-	}
+func executeFlixUpdatePayload(flixID string, publicationState string, localBytes []byte) {
+    // Only publicationState is needed; drop publicTrigger
+    payload := map[string]interface{}{
+        "targetFlixID":     flixID,
+        "publicationState": publicationState,
+        "templateData":     json.RawMessage(localBytes),
+    }
 
-	bodyBytes, _ := json.Marshal(payload)
-	resp, err := http.Post("https://api.blsqui.net/api/flix/update", "application/json", bytes.NewBuffer(bodyBytes))
-	if err != nil {
-		fmt.Printf("❌ Network Error: Could not reach Blsqui Registry: %v\n", err)
-		return
-	}
-	defer resp.Body.Close()
+    bodyBytes, _ := json.Marshal(payload)
+    resp, err := http.Post("https://api.blsqui.net/api/flix/update", "application/json", bytes.NewBuffer(bodyBytes))
+    if err != nil {
+        fmt.Printf("❌ Network Error: Could not reach Blsqui Registry: %v\n", err)
+        return
+    }
+    defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		respBytes, _ := io.ReadAll(resp.Body)
-		fmt.Printf("❌ Upload Rejected by Registry Server (Status: %d):\n%s\n", resp.StatusCode, string(respBytes))
-		return
-	}
+    respBytes, err := io.ReadAll(resp.Body)
+    if err != nil {
+        fmt.Printf("❌ Failed to read server execution stream: %v\n", err)
+        return
+    }
 
-	var uResp FlixUpdateResponse
-	if err := json.NewDecoder(resp.Body).Decode(&uResp); err != nil {
-		fmt.Printf("❌ Error decoding registry server response metadata: %v\n", err)
-		return
-	}
+    if resp.StatusCode != http.StatusOK {
+        handleAuditErrorResponse(resp.StatusCode, respBytes)
+        return
+    }
 
-	fmt.Println("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    var uResp FlixServerResponse
+    if err := json.Unmarshal(respBytes, &uResp); err != nil {
+        fmt.Printf("❌ Error decoding registry server response metadata: %v\n", err)
+        return
+    }
+
+    templateID := uResp.TemplateID
+    if templateID == "" {
+        templateID = flixID
+    }
+
+    fmt.Println("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     fmt.Println("🎉 FLIX Template Updated & Synchronized Successfully!")
     fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
-    fmt.Printf("\n📋 New FLIX Template ID (For SDK & Web):\n")
-    fmt.Printf("   \033[1;36m%s\033[0m\n", uResp.NewTemplateID)
+    fmt.Printf("\n📋 FLIX Template ID (For SDK & Web):\n")
+    fmt.Printf("   \033[1;36m%s\033[0m\n", templateID)
 
     fmt.Printf("\n🔗 Direct Registry Endpoint:\n")
-    fmt.Printf("   https://api.blsqui.net/flix/registry/%s\n", uResp.NewTemplateID)
+    fmt.Printf("   https://api.blsqui.net/flix/registry/%s\n", templateID)
 
-    if isCadenceChanged {
-        fmt.Println("\n⚠️  Status: Staged for Audit Review")
-        fmt.Println("   Since Cadence logic was modified, this template will be activated")
-        fmt.Println("   on the public network once the audit review is verified.")
+    if publicationState == "PUBLISH_LATER" {
+        fmt.Println("\n🔒 Status: Staged Privately (on_public: false)")
+        fmt.Println("   The template passed automated audit checks and is saved.")
+        fmt.Println("   Promote it to the public registry when you are ready to release.")
     } else {
-        fmt.Println("\n✅ Status: Live & Active (Updates are effective immediately.)")
+        fmt.Println("\n✅ Status: Live & Active (on_public: true)")
+        fmt.Println("   Automated audit verified. Updates are live immediately.")
     }
     fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+}
+
+func handleAuditErrorResponse(statusCode int, bodyBytes []byte) bool {
+    if statusCode == http.StatusOK {
+        return false
+    }
+
+    var errResp BlsquiErrorResponse
+    if err := json.Unmarshal(bodyBytes, &errResp); err == nil && len(errResp.Errors) > 0 {
+        fmt.Println("\n❌ FLIX Audit Violations Detected (HTTP Status 422):")
+        fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        for _, e := range errResp.Errors {
+            fmt.Printf(" • [%s] at \033[1;33m%s\033[0m:\n   %s\n", e.Code, e.Target, e.Message)
+        }
+        fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+        return true
+    }
+
+    fmt.Printf("❌ Upload Rejected by Registry (Status: %d):\n%s\n", statusCode, string(bodyBytes))
+    return true
 }

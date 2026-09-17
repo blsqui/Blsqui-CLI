@@ -160,27 +160,27 @@ func handleUpdateFlow() {
 		}
 	}
 
-	publicationState := "CADENCE_CHANGED"
+	publicationState := "UPDATE_SOON"
 	promoteToPublic := false
 
 	if !cadenceCodeChanged {
 		fmt.Println("\n✅ Verification Complete: Cadence transaction code is completely unchanged.")
 		fmt.Println("👉 Hey, you are not changing the cadence code, so that you don't need the audit and can promote to public as soon as this is uploaded.")
 
-		prompt := &survey.Confirm{
-			Message: "Do you want to promote this updated FLIX Template directly to public?",
-			Default: true,
-		}
-		survey.AskOne(prompt, &promoteToPublic)
-
-		if promoteToPublic {
-			publicationState = "UPDATE_SOON"
-		} else {
-			publicationState = "PUBLISH_LATER"
-		}
 	} else {
-		fmt.Println("\n⚠️ Alert: You changed the cadence code. This needs audit, and the target template will be on public while you apply and pass the audit.")
-		publicationState = "CADENCE_CHANGED"
+		fmt.Println("\n⚠️ Notice: Cadence logic has changed. The server will automatically verify and audit the code upon submission.")
+	}
+
+	prompt := &survey.Confirm{
+		Message: "Do you want to promote this updated FLIX Template directly to public?",
+		Default: true,
+	}
+	survey.AskOne(prompt, &promoteToPublic)
+
+	if promoteToPublic {
+		publicationState = "UPDATE_SOON"
+	} else {
+		publicationState = "PUBLISH_LATER"
 	}
 
 	var confirmUpload bool
@@ -195,5 +195,5 @@ func handleUpdateFlow() {
 		return
 	}
 
-	executeFlixUpdatePayload(flixID, publicationState, promoteToPublic, localBytes, cadenceCodeChanged)
+	executeFlixUpdatePayload(flixID, publicationState, localBytes)
 }
