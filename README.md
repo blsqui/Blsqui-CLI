@@ -92,6 +92,7 @@ To protect users against unintended token drains and asset losses, all FLIX temp
 | `FLIX_AUDIT_FT_AMOUNT_NOT_HARDCODED` | `cadence_script.cdc:<line>` | Any `.withdraw(amount: ...)` call protected by `auth(FungibleToken.Withdraw)` must use a **hardcoded numeric literal** (e.g. `1.0`), never a variable or parameter. |
 | `FLIX_AUDIT_METADATA_MISMATCH` | `metadata.description` | 1. If an amount is withdrawn, both the exact numeric amount and the token symbol (e.g., `1.0 FLOW` or `1 FLOW`) must appear in all language descriptions.<br>2. If the Cadence code contains a `destroy` keyword, all description translations must include `*destroy`. |
 | `FLIX_AUDIT_METADATA_MISMATCH` | `metadata.sdk:detail-body` | If `sdk:detail-body` is defined, it must include the numeric amount specified in the withdrawal. |
+| `FLIX_AUDIT_MISSING_REQUIRED_FIELD` | `metadata.title`<br><br>`metadata.icon`<br><br>`metadata.description` | Essential visual metadata fields (`title`, `icon`, and `description`) must be present in the template messages with at least one valid, non-empty translation. |
 
 ---
 

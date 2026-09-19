@@ -63,9 +63,6 @@ func handleUpdateFlow() {
 	fmt.Println("🔄 Update FLIX Template To Match Your Preferred Style")
 	fmt.Println("────────────────────────────────────────────────────────────")
 	fmt.Println("ℹ️  This command regenerates and pushes an updated FLIX template.")
-	fmt.Println("   • If you only modified metadata/IP (icons, titles, translations),")
-	fmt.Println("     the update bypasses audits and goes live immediately.")
-	fmt.Println("   • If Cadence code changed, it will stage for audit review.")
 	fmt.Println("\n📖 Step-by-step tutorial:")
 	fmt.Println("   👉 https://blsqui.net/developer-guide/blsqui-cli")
 	fmt.Println("────────────────────────────────────────────────────────────\n")
@@ -165,7 +162,7 @@ func handleUpdateFlow() {
 
 	if !cadenceCodeChanged {
 		fmt.Println("\n✅ Verification Complete: Cadence transaction code is completely unchanged.")
-		fmt.Println("👉 Hey, you are not changing the cadence code, so that you don't need the audit and can promote to public as soon as this is uploaded.")
+		fmt.Println("👉 Hey, you are not changing the cadence code, so that you only need the metadata audit and can promote to public as soon as this is uploaded.")
 
 	} else {
 		fmt.Println("\n⚠️ Notice: Cadence logic has changed. The server will automatically verify and audit the code upon submission.")
